@@ -1,0 +1,11 @@
+{% extends 'layout.html' %} 
+
+{% block body %}
+
+<h1>Query</h1> 
+{% for r in result %}
+<li>{{r.decode('utf-8')}}</li> 
+{% endfor %}
+
+
+{% endblock %}

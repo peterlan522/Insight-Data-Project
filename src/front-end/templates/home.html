@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+	<div class="jumbotron text-center">
+		<h1>Welcome To FlaskApp</h1>
+		<p class="lead">This application is just a test</p>
+	</div>
+
+	<div>
+		<table class="table">
+  <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Hashtag</th>
+      <th scope="col">Positive</th>
+      <th scope="col">Negtive</th>
+      <th scope="col">Neutrality</th>
+    </tr>
+  </thead>
+  <tbody>
+  	{% for i, (hashtag, pos, neg, neu) in lines %}
+    <tr>
+      <th scope="row">{{i}}</th>
+      <td>{{hashtag}}</td>
+      <td>{{pos}}</td>
+      <td>{{neg}}</td>
+      <td>{{neu}}</td>
+    </tr>     
+    {% endfor %}
+  </tbody>
+</table>
+
+
+	</div>
+
+{% endblock %}
