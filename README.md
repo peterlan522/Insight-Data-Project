@@ -9,4 +9,4 @@ This data pipeline comsumes real time twitter data and does semantic analysis on
 
 ### Pipeline
 
-![alt tag](https://github.com/peterlan522/insight-data-project/tree/master/images/data_pipeline.png "twitter semantic analysis")
+![alt tag](insight-data-project/images/data_pipeline.png "twitter semantic analysis")
