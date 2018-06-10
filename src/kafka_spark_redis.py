@@ -18,11 +18,18 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
 
+APP_NAME = "What's-Hot"
+SPARK_MASTER = "spark://ip-10-0-0-11:7077"
 KAFKA_TOPIC = ["topic-twitter"]
 KAFKA_BROKERS = "10.0.0.9:9092,10.0.0.5:9092,10.0.0.6:9092"
 REDIS_HOST = "35.170.1.59"
 REDIS_PORT = 6379
-S3_BUCKET = "s3n://peter-data-output/file"
+BATCH_LAYER = "s3n://peter-data-output/file"
+CHECKPOINT_DIR = "s3n://peter-data-checkpoint/spark"
+BATCH_SIZE = 1
+WINDOW_SIZE = 600 * BATCH_SIZE
+FREQUENCY = 60 * BATCH_SIZE
+REDIS_SORTED_SET = "tweets"
 
 
 def storeToRedis(partition):
@@ -30,9 +37,10 @@ def storeToRedis(partition):
     conn.flushdb()
     pipe = conn.pipeline()
     for record in partition:
-        pipe.zadd("tweets", -record[1][0], [record[0],
-                                            record[1][1], record[1][2], record[1][3]])
+        pipe.zadd(REDIS_SORTED_SET, -
+                  record[1][0], [record[0], record[1][1], record[1][2], record[1][3]])
     pipe.execute()
+
 
 def scoreToList(score):
     if score > 0:
@@ -42,14 +50,15 @@ def scoreToList(score):
     else:
         return (1, 0, 0, 1)
 
+
 # spark streaming pull message from kafka brokers
 def main():
 
-    # init
-    conf = SparkConf().setAppName("What's-Hot").setMaster("spark://ip-10-0-0-11:7077")
+    conf = SparkConf().setAppName(APP_NAME).setMaster(SPARK_MASTER)
     sc = SparkContext(conf=conf)
     sc.setLogLevel('ERROR')
-    ssc = StreamingContext(sc, 1)
+    ssc = StreamingContext(sc, BATCH_SIZE)
+    ssc.checkpoint(CHECKPOINT_DIR)
 
     afinn = Afinn()
 
@@ -62,14 +71,16 @@ def main():
         .filter(lambda tweet: 'entities' in tweet and len(tweet['entities']['hashtags']) > 0 ) \
         .map(lambda t: (t['entities']['hashtags'][0]['text'].lower(), afinn.score(t['text'])))
 
-    tags = parsed.window(60, 10) \
-                 .map(lambda t: (t[0], scoreToList(t[1]))) \
-                 .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3])) \
+    addFun = lambda a, b: (a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3])
+    invFun = lambda a, b: (a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3])
+
+    tags = parsed.map(lambda t: (t[0], scoreToList(t[1]))) \
+                 .reduceByKeyAndWindow(addFun, invFun, WINDOW_SIZE, FREQUENCY) \
                  .transform(lambda rdd: rdd.sortBy(lambda a: -a[1][0]))
 
-    saveTag = parsed.saveAsTextFiles(S3_BUCKET)
+    saveTag = parsed.saveAsTextFiles(BATCH_LAYER)
 
-    #tags.pprint()
+    tags.pprint()
 
     tags.foreachRDD(lambda rdd: rdd.foreachPartition(
         lambda p: storeToRedis(p)))
