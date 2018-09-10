@@ -2,7 +2,7 @@
 2018 Insight Data Engineer Project
 
 ## Table of Content
-[Overview] (Overview)
+[Overview] 
 
 ### Overview
 This data pipeline comsumes real time twitter data and does semantic analysis on hashtags.
